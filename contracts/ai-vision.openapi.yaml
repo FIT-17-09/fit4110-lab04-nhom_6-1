@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: A4 AI Vision Service
+  version: 0.4.0
+  description: API contract for AI Vision Service (Group A4)
+servers:
+  - url: http://localhost:8000
+    description: Local server
+  - url: http://ai-vision:8000
+    description: Docker Compose
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+    Detection:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [person, stranger, vehicle, bag, none]
+        confidence:
+          type: number
+          format: float
+        bbox:
+          type: array
+          items:
+            type: integer
+    VisionAnalyzeRequest:
+      type: object
+      required: [camera_id, image_url, timestamp]
+      properties:
+        camera_id:
+          type: string
+        image_url:
+          type: string
+          format: uri
+        timestamp:
+          type: string
+          format: date-time
+        zone:
+          type: string
+        motion_detected:
+          type: boolean
+    VisionAnalysis:
+      type: object
+      properties:
+        analysis_id:
+          type: string
+        camera_id:
+          type: string
+        detected:
+          type: boolean
+        object:
+          type: string
+          enum: [person, stranger, vehicle, bag, none]
+        confidence:
+          type: number
+          format: float
+        risk_level:
+          type: string
+          enum: [low, medium, high]
+        detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Detection'
+        core_event_url:
+          type: string
+          format: uri
+        analytics_event_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+paths:
+  /vision/analyze:
+    post:
+      summary: Analyze an image/frame from camera stream
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisionAnalyzeRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionAnalysis'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /vision/results/latest:
+    get:
+      summary: Get latest vision results
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: camera_id
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VisionAnalysis'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /vision/results/{analysis_id}:
+    get:
+      summary: Get a specific vision result
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: analysis_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionAnalysis'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'

@@ -1,0 +1,46 @@
+{
+  "info": {
+    "name": "FIT4110_lab04_A5_Analytics",
+    "_postman_id": "a5-analytics-collection",
+    "description": "Postman collection for A5 Analytics events",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Publish Analytics Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{analytics_event_body}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/analytics/events",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["analytics","events"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "key": "analytics_event_body",
+      "value": "{\n  \"event_id\": \"evt-12345\",\n  \"source\": \"camera-01\",\n  \"source_type\": \"camera\",\n  \"event_type\": \"object_detected\",\n  \"timestamp\": \"2026-06-03T12:34:56Z\",\n  \"payload\": {\n    \"object\": \"person\",\n    \"confidence\": 0.93,\n    \"bbox\": [100,150,200,350]\n  },\n  \"metadata\": {\n    \"zone\": \"entrance\",\n    \"priority\": \"high\"\n  }\n}"
+    }
+  ]
+}

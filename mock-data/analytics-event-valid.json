@@ -1,0 +1,16 @@
+{
+  "event_id": "evt-12345",
+  "source": "camera-01",
+  "source_type": "camera",
+  "event_type": "object_detected",
+  "timestamp": "2026-06-03T12:34:56Z",
+  "payload": {
+    "object": "person",
+    "confidence": 0.93,
+    "bbox": [100, 150, 200, 350]
+  },
+  "metadata": {
+    "zone": "entrance",
+    "priority": "high"
+  }
+}

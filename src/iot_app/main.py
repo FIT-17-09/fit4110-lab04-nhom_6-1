@@ -263,3 +263,140 @@ def get_reading(reading_id: str) -> Dict:
             problem_type="https://smart-campus.local/problems/not-found",
         ),
     )
+
+
+# --- AI Vision Service (A4) endpoints ---
+class VisionObject(str, Enum):
+    person = "person"
+    stranger = "stranger"
+    vehicle = "vehicle"
+    bag = "bag"
+    none = "none"
+
+
+class RiskLevel(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class Detection(BaseModel):
+    object: VisionObject
+    confidence: float
+    bbox: List[int]
+
+
+class VisionAnalyzeRequest(BaseModel):
+    camera_id: str
+    image_url: str
+    timestamp: str
+    zone: Optional[str] = None
+    motion_detected: Optional[bool] = None
+
+
+class VisionAnalysis(BaseModel):
+    analysis_id: str
+    camera_id: str
+    detected: bool
+    object: VisionObject
+    confidence: float
+    risk_level: RiskLevel
+    detections: List[Detection]
+    core_event_url: str
+    analytics_event_url: str
+    created_at: str
+
+
+VISIONS: List[Dict] = []
+
+
+def next_analysis_id() -> str:
+    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return f"VIS-{today}-{len(VISIONS) + 1:04d}"
+
+
+@app.post(
+    "/vision/analyze",
+    response_model=VisionAnalysis,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_bearer_token)],
+    responses={401: {"model": ProblemDetails}, 422: {"model": ProblemDetails}},
+)
+def analyze_vision(payload: VisionAnalyzeRequest) -> VisionAnalysis:
+    # Very small deterministic stub detection logic for lab/demo purposes
+    analysis_id = next_analysis_id()
+    created_at = now_iso()
+
+    # Simple heuristic: if image_url contains 'unknown' or 'stranger' -> stranger/high
+    img = payload.image_url.lower()
+    if "unknown" in img or "stranger" in img:
+        obj = VisionObject.stranger
+        confidence = 0.94
+        risk = RiskLevel.high
+        detected = True
+    elif "vehicle" in img:
+        obj = VisionObject.vehicle
+        confidence = 0.88
+        risk = RiskLevel.medium
+        detected = True
+    elif payload.motion_detected:
+        obj = VisionObject.person
+        confidence = 0.82
+        risk = RiskLevel.medium
+        detected = True
+    else:
+        obj = VisionObject.none
+        confidence = 0.0
+        risk = RiskLevel.low
+        detected = False
+
+    detections = []
+    if detected:
+        detections = [
+            {"object": obj, "confidence": confidence, "bbox": [120, 48, 340, 420]}
+        ]
+
+    item = {
+        "analysis_id": analysis_id,
+        "camera_id": payload.camera_id,
+        "detected": detected,
+        "object": obj.value,
+        "confidence": confidence,
+        "risk_level": risk.value,
+        "detections": detections,
+        "core_event_url": os.getenv("CORE_BUSINESS_URL", "http://core-business:8000/events/vision"),
+        "analytics_event_url": os.getenv("ANALYTICS_URL", "http://analytics:8000/events/vision"),
+        "created_at": created_at,
+    }
+
+    VISIONS.append(item)
+
+    return VisionAnalysis(**item)
+
+
+@app.get("/vision/results/latest", dependencies=[Depends(verify_bearer_token)])
+def vision_latest_results(camera_id: Optional[str] = Query(default=None), limit: int = Query(default=10, ge=1, le=100)) -> Dict[str, List[Dict]]:
+    items = VISIONS
+    if camera_id:
+        items = [it for it in items if it["camera_id"] == camera_id]
+
+    return {"items": items[-limit:]}
+
+
+@app.get("/vision/results/{analysis_id}", dependencies=[Depends(verify_bearer_token)])
+def vision_get_result(analysis_id: str) -> Dict:
+    for item in VISIONS:
+        if item["analysis_id"] == analysis_id:
+            return item
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=build_problem(
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Not Found",
+            detail=f"Vision analysis {analysis_id} does not exist",
+            instance=f"/vision/results/{analysis_id}",
+            problem_type="https://smart-campus.local/problems/not-found",
+        ),
+    )
+

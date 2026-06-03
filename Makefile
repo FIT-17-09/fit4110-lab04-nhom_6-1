@@ -34,3 +34,9 @@ stop:
 
 clean-reports:
 	rm -f reports/*.xml reports/*.html reports/*.json
+
+evidence:
+	powershell -ExecutionPolicy Bypass -File scripts/generate-docker-evidence.ps1
+
+evidence-unix:
+	bash scripts/generate-docker-evidence.sh
